@@ -8,6 +8,7 @@ import 'package:pdf/widgets.dart' as pw;
 
 import '../../models/scan_result.dart';
 import '../../services/report_repository.dart';
+import 'report_detail_screen.dart';
 
 class ReportScreen extends StatefulWidget {
   const ReportScreen({super.key});
@@ -25,6 +26,9 @@ class _ReportScreenState extends State<ReportScreen> {
     super.initState();
     _reportsFuture = _repo.getReports();
   }
+
+
+
 
   Future<void> _exportPdfReport(ScanResult item) async {
     final savePath = await FilePicker.platform.saveFile(
@@ -44,33 +48,12 @@ class _ReportScreenState extends State<ReportScreen> {
           pw.Text('Started: ${item.startedAt}'),
           pw.Text('Finished: ${item.finishedAt}'),
           pw.Text('Findings: ${item.vulnerabilities.length} | Score: ${item.securityScore}'),
-          pw.SizedBox(height: 12),
-          pw.Text('Errors', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-          if (item.errors.isEmpty) pw.Text('-') else ...item.errors.map((e) => pw.Bullet(text: e)),
-          pw.SizedBox(height: 12),
-          pw.Text('Findings Detail', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-          ...item.vulnerabilities.map(
-            (v) => pw.Container(
-              margin: const pw.EdgeInsets.only(bottom: 8),
-              padding: const pw.EdgeInsets.all(8),
-              decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.grey500)),
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Text('[${v.severity}] ${v.issue}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                  pw.Text('${v.file}:${v.line} (${v.scanner})'),
-                  pw.Text('Remediation: ${v.remediation}'),
-                ],
-              ),
-            ),
-          ),
         ],
       ),
     );
 
     await File(savePath).writeAsBytes(await pdf.save());
   }
-
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -109,6 +92,11 @@ class _ReportScreenState extends State<ReportScreen> {
                           Button(
                             child: const Text('Export PDF'),
                             onPressed: () => _exportPdfReport(item),
+                          ),
+                          const SizedBox(width: 8),
+                          FilledButton(
+                            child: const Text('Detail / Git'),
+                            onPressed: () => Navigator.of(context).push(FluentPageRoute(builder: (_) => ReportDetailScreen(item: item))),
                           ),
                         ],
                       )
