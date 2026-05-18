@@ -31,7 +31,7 @@ class _ScanScreenState extends State<ScanScreen> {
   }
 
   Future<void> _scanCode() async {
-    final path = await FilePicker.platform.getDirectoryPath(dialogTitle: 'Pilih project source code');
+    final path = await FilePicker().getDirectoryPath(dialogTitle: 'Pilih project source code');
     if (path == null) return;
     setState(() {
       _loading = true;
