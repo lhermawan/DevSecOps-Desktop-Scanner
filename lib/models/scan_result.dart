@@ -2,16 +2,20 @@ import 'vulnerability.dart';
 
 class ScanResult {
   const ScanResult({
+    this.id,
     required this.projectPath,
     required this.startedAt,
     required this.finishedAt,
     required this.vulnerabilities,
+    this.errors = const [],
   });
 
+  final int? id;
   final String projectPath;
   final DateTime startedAt;
   final DateTime finishedAt;
   final List<Vulnerability> vulnerabilities;
+  final List<String> errors;
 
   Map<String, int> get severityCount {
     final map = <String, int>{'critical': 0, 'high': 0, 'medium': 0, 'low': 0};
@@ -25,11 +29,15 @@ class ScanResult {
   }
 
   int get securityScore {
-    final penaltyMap = {'critical': 30, 'high': 20, 'medium': 10, 'low': 5};
-    var score = 100;
+    if (vulnerabilities.isEmpty) return 100;
+
+    final weightedMap = {'critical': 10, 'high': 6, 'medium': 3, 'low': 1};
+    var weightedTotal = 0;
     for (final v in vulnerabilities) {
-      score -= penaltyMap[v.severity.toLowerCase()] ?? 0;
+      weightedTotal += weightedMap[v.severity.toLowerCase()] ?? 2;
     }
+
+    final score = 100 - (weightedTotal ~/ 2);
     return score.clamp(0, 100);
   }
 }
