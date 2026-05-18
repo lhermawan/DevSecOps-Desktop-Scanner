@@ -19,22 +19,14 @@ class ScanScreen extends StatefulWidget {
 class _ScanScreenState extends State<ScanScreen> {
   final _scanner = ScannerService();
   final _git = GitService();
-  final _urlController = TextEditingController(text: 'https://example.com');
   bool _loading = false;
   String? _projectPath;
   ScanResult? _result;
-  String _mode = 'code';
   String _status = 'Siap scan.';
   List<String> _missingTools = [];
 
-  @override
-  void dispose() {
-    _urlController.dispose();
-    super.dispose();
-  }
-
   Future<void> _scanCode() async {
-    final path = await FilePicker.platform.getDirectoryPath(dialogTitle: 'Pilih project source code');
+    final path = await FilePicker.platform.getDirectoryPath(dialogTitle: 'Pilih folder project source code');
     if (path == null) return;
     setState(() {
       _loading = true;
@@ -71,37 +63,6 @@ class _ScanScreenState extends State<ScanScreen> {
     });
   }
 
-  Future<void> _scanWeb() async {
-    final target = _urlController.text.trim();
-    if (target.isEmpty) return;
-    setState(() {
-      _loading = true;
-      _projectPath = target;
-      _status = 'Checking tools...';
-      _missingTools = [];
-      _result = null;
-    });
-    final missing = await _scanner.getMissingWebTools();
-    if (missing.isNotEmpty) {
-      setState(() {
-        _missingTools = missing;
-        _loading = false;
-        _status = 'Scan dibatalkan: ada tools web scan belum terinstall.';
-      });
-      return;
-    }
-    setState(() => _status = 'Menjalankan Nuclei + OWASP ZAP baseline...');
-    final result = await _scanner.runWebScan(target);
-    await ReportRepository.instance.saveScanResult(result);
-    setState(() {
-      _result = result;
-      _loading = false;
-      _status = result.vulnerabilities.isEmpty ? 'Web scan selesai. Tidak ada temuan.' : 'Web scan selesai. Ditemukan ${result.vulnerabilities.length} temuan.';
-    });
-  }
-
-  Future<void> _runScan() => _mode == 'code' ? _scanCode() : _scanWeb();
-
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -114,25 +75,13 @@ class _ScanScreenState extends State<ScanScreen> {
               content: Text('Silakan install dulu: ${_missingTools.join(', ')}. Buka halaman Settings untuk panduan install.'),
               severity: InfoBarSeverity.warning,
             ),
-          InfoLabel(
-            label: 'Mode Scan',
-            child: ComboBox<String>(
-              value: _mode,
-              items: const [
-                ComboBoxItem(value: 'code', child: Text('Code Scan (Gitleaks/Semgrep/Trivy)')),
-                ComboBoxItem(value: 'web', child: Text('Web Scan (Nuclei/ZAP)')),
-              ],
-              onChanged: (v) => setState(() => _mode = v ?? 'code'),
-            ),
-          ),
+          const Text('Scan page hanya untuk Code Scan. Web Scan (Nuclei + ZAP) dilakukan dari halaman Report > Detail / Git.'),
           const SizedBox(height: 12),
-          if (_mode == 'web') InfoLabel(label: 'Target URL', child: TextBox(controller: _urlController)),
-          const SizedBox(height: 12),
-          Text(_projectPath == null ? 'Belum ada target dipilih.' : 'Target: $_projectPath'),
+          Text(_projectPath == null ? 'Belum ada folder project dipilih.' : 'Project: $_projectPath'),
           const SizedBox(height: 4),
           Text(_status),
           const SizedBox(height: 12),
-          ScanButton(onPressed: _runScan, isLoading: _loading),
+          ScanButton(onPressed: _scanCode, isLoading: _loading),
           const SizedBox(height: 20),
           if (_result != null) ...[
             ScoreCard(score: _result!.securityScore),
