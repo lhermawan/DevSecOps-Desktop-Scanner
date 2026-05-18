@@ -84,6 +84,7 @@ class _ReportScreenState extends State<ReportScreen> {
     final commitController = TextEditingController();
     String status = 'Siap.';
     bool busy = false;
+    final logs = <String>[];
 
     await showDialog(
       context: context,
@@ -105,6 +106,18 @@ class _ReportScreenState extends State<ReportScreen> {
                   const SizedBox(height: 10),
                   Text(status),
                   const SizedBox(height: 12),
+                  SizedBox(
+                    height: 120,
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(border: Border.all(color: Colors.grey)),
+                      child: logs.isEmpty
+                          ? const Text('Belum ada log scan.')
+                          : ListView(children: logs.map((l) => Text(l)).toList()),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   Row(
                     children: [
                       FilledButton(
@@ -115,6 +128,8 @@ class _ReportScreenState extends State<ReportScreen> {
                                 setInnerState(() {
                                   busy = true;
                                   status = 'Checking tools web...';
+                                  logs.clear();
+                                  logs.add('[1/3] Validasi tools web...');
                                 });
                                 final missing = await _scanner.getMissingWebTools();
                                 if (missing.isNotEmpty) {
@@ -124,11 +139,16 @@ class _ReportScreenState extends State<ReportScreen> {
                                   });
                                   return;
                                 }
+                                setInnerState(() => logs.add('[2/3] Menjalankan Nuclei + ZAP baseline...'));
                                 final result = await _scanner.runWebScan(targetController.text.trim());
                                 await _repo.saveScanResult(result);
                                 setInnerState(() {
                                   busy = false;
                                   status = 'Web scan selesai. Temuan: ${result.vulnerabilities.length}';
+                                  logs.add('[3/3] Selesai. Findings: ${result.vulnerabilities.length}. Errors: ${result.errors.length}.');
+                                  if (result.errors.isNotEmpty) {
+                                    logs.addAll(result.errors.map((e) => '• $e'));
+                                  }
                                 });
                                 await _refreshReports();
                               },

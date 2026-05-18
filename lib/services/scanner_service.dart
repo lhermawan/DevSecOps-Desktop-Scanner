@@ -90,22 +90,36 @@ class ScannerService {
   }
 
   Future<List<Vulnerability>> _runNuclei(String targetUrl, List<String> errors) async {
-    final result = await _runProcess('nuclei', ['-u', targetUrl, '-jsonl', '-silent']);
-    return result == null || result.stdout.toString().trim().isEmpty
-        ? []
-        : _safeParse(() => _nuclei.parseJsonl(result.stdout.toString()), errors, 'nuclei');
+    final result = await _runProcess('nuclei', ['-u', targetUrl, '-jsonl']);
+    if (result == null) {
+      errors.add('nuclei error: process gagal dijalankan.');
+      return [];
+    }
+    final stdout = result.stdout.toString();
+    final stderr = result.stderr.toString().trim();
+    if (result.exitCode != 0 && stderr.isNotEmpty) {
+      errors.add('nuclei error: $stderr');
+    }
+    if (stdout.trim().isEmpty) {
+      errors.add('nuclei info: tidak ada output finding (bisa jadi tidak ada temuan).');
+      return [];
+    }
+    return _safeParse(() => _nuclei.parseJsonl(stdout), errors, 'nuclei');
   }
 
   Future<List<Vulnerability>> runZapBaseline(String targetUrl, List<String> errors) async {
     final tempDir = await Directory.systemTemp.createTemp('securepush-zap-');
     final reportPath = p.join(tempDir.path, 'zap-report.json');
     final result = await _runProcess('zap-baseline.py', ['-t', targetUrl, '-J', reportPath]);
-    if (result == null) return [];
+    if (result == null) {
+      errors.add('zap error: process gagal dijalankan.');
+      return [];
+    }
     try {
       final reportFile = File(reportPath);
       if (!reportFile.existsSync()) {
         final stderr = result.stderr.toString().trim();
-        if (stderr.isNotEmpty) errors.add('zap error: $stderr');
+        errors.add(stderr.isNotEmpty ? 'zap error: $stderr' : 'zap error: report JSON tidak terbentuk.');
         return [];
       }
       final raw = await reportFile.readAsString();
