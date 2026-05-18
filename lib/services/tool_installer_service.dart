@@ -91,18 +91,8 @@ class ToolInstallerService {
             continue;
           }
 
-          final zapBat = File('${zapDir.path}\\zap.bat');
-          final zapJar = File('${zapDir.path}\\zap-2.17.0.jar');
-          if (await zapBat.exists() || await zapJar.exists()) {
-            return true;
-          }
-
-          final dynamicZapJar = await zapDir
-              .list()
-              .where((entity) => entity is File)
-              .cast<File>()
-              .any((file) => file.uri.pathSegments.last.startsWith('zap-') && file.path.endsWith('.jar'));
-          if (dynamicZapJar) {
+          final baseline = File('${zapDir.path}\\zap-baseline.py');
+          if (await baseline.exists()) {
             return true;
           }
         }
@@ -122,7 +112,7 @@ class ToolInstallerService {
 
   List<String> _candidatesForTool(String toolName) {
     if (Platform.isWindows && toolName == 'zap-baseline.py') {
-      return const ['zap-baseline.py', 'zap.exe', 'ZAP.exe', 'zap.bat', 'zaproxy'];
+      return const ['zap-baseline.py'];
     }
 
     return [toolName, if (Platform.isWindows && !toolName.endsWith('.exe')) '$toolName.exe'];
