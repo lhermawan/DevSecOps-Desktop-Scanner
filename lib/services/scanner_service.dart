@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:path/path.dart' as p;
 
 import '../models/scan_result.dart';
 import '../models/vulnerability.dart';
@@ -89,17 +90,46 @@ class ScannerService {
   }
 
   Future<List<Vulnerability>> _runNuclei(String targetUrl, List<String> errors) async {
-    final result = await _runProcess('nuclei', ['-u', targetUrl, '-jsonl', '-silent']);
-    return result == null || result.stdout.toString().trim().isEmpty
-        ? []
-        : _safeParse(() => _nuclei.parseJsonl(result.stdout.toString()), errors, 'nuclei');
+    final result = await _runProcess('nuclei', ['-u', targetUrl, '-jsonl']);
+    if (result == null) {
+      errors.add('nuclei error: process gagal dijalankan.');
+      return [];
+    }
+    final stdout = result.stdout.toString();
+    final stderr = result.stderr.toString().trim();
+    if (result.exitCode != 0 && stderr.isNotEmpty) {
+      errors.add('nuclei error: $stderr');
+    }
+    if (stdout.trim().isEmpty) {
+      errors.add('nuclei info: tidak ada output finding (bisa jadi tidak ada temuan).');
+      return [];
+    }
+    return _safeParse(() => _nuclei.parseJsonl(stdout), errors, 'nuclei');
   }
 
   Future<List<Vulnerability>> runZapBaseline(String targetUrl, List<String> errors) async {
-    final result = await _runProcess('zap-baseline.py', ['-t', targetUrl, '-J', '-']);
-    return result == null || result.stdout.toString().trim().isEmpty
-        ? []
-        : _safeParse(() => _zap.parse(result.stdout.toString()), errors, 'zap');
+    final tempDir = await Directory.systemTemp.createTemp('securepush-zap-');
+    final reportPath = p.join(tempDir.path, 'zap-report.json');
+    final result = await _runProcess('zap-baseline.py', ['-t', targetUrl, '-J', reportPath]);
+    if (result == null) {
+      errors.add('zap error: process gagal dijalankan.');
+      return [];
+    }
+    try {
+      final reportFile = File(reportPath);
+      if (!reportFile.existsSync()) {
+        final stderr = result.stderr.toString().trim();
+        errors.add(stderr.isNotEmpty ? 'zap error: $stderr' : 'zap error: report JSON tidak terbentuk.');
+        return [];
+      }
+      final raw = await reportFile.readAsString();
+      if (raw.trim().isEmpty) return [];
+      return _safeParse(() => _zap.parse(raw), errors, 'zap');
+    } finally {
+      if (tempDir.existsSync()) {
+        await tempDir.delete(recursive: true);
+      }
+    }
   }
 
   Future<ScanResult> runWebScan(String targetUrl) async {
