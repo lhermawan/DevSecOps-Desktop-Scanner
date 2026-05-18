@@ -28,9 +28,9 @@ class ToolInstallerService {
   }
 
   Future<bool> _isOnPath(String toolName) async {
-    if (Platform.isWindows) {
-      final candidates = [toolName, if (!toolName.endsWith('.exe')) '$toolName.exe'];
+    final candidates = _candidatesForTool(toolName);
 
+    if (Platform.isWindows) {
       for (final candidate in candidates) {
         final whereResult = await Process.run('where.exe', [candidate]);
         if (whereResult.exitCode == 0) {
@@ -48,17 +48,47 @@ class ToolInstallerService {
         }
       }
 
+      final userProfile = Platform.environment['USERPROFILE'];
+      if (userProfile != null && userProfile.isNotEmpty) {
+        final fallbackDirs = <String>[
+          '$userProfile\\go\\bin',
+          '$userProfile\\scoop\\shims',
+        ];
+
+        for (final dir in fallbackDirs) {
+          for (final candidate in candidates) {
+            final binary = File('$dir\\$candidate');
+            if (await binary.exists()) {
+              return true;
+            }
+          }
+        }
+      }
+
       // Fallback PowerShell jika PATH/alias environment berbeda.
       final psResult = await Process.run('powershell.exe', [
         '-NoProfile',
         '-Command',
-        "Get-Command ${candidates.first} -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source -First 1",
+        "Get-Command ${candidates.join(',')} -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source -First 1",
       ]);
       return psResult.exitCode == 0 && psResult.stdout.toString().trim().isNotEmpty;
     }
 
-    final result = await Process.run('which', [toolName]);
-    return result.exitCode == 0;
+    for (final candidate in candidates) {
+      final result = await Process.run('which', [candidate]);
+      if (result.exitCode == 0) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  List<String> _candidatesForTool(String toolName) {
+    if (Platform.isWindows && toolName == 'zap-baseline.py') {
+      return const ['zap-baseline.py', 'zap.exe', 'ZAP.exe', 'zap.bat', 'zaproxy'];
+    }
+
+    return [toolName, if (Platform.isWindows && !toolName.endsWith('.exe')) '$toolName.exe'];
   }
 
   Future<bool> _isRunnable(String toolName) async {
