@@ -7,7 +7,9 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 import '../../models/scan_result.dart';
+import '../../services/git_service.dart';
 import '../../services/report_repository.dart';
+import '../../services/scanner_service.dart';
 
 class ReportScreen extends StatefulWidget {
   const ReportScreen({super.key});
@@ -18,12 +20,18 @@ class ReportScreen extends StatefulWidget {
 
 class _ReportScreenState extends State<ReportScreen> {
   final _repo = ReportRepository.instance;
+  final _scanner = ScannerService();
+  final _git = GitService();
   late Future<List<ScanResult>> _reportsFuture;
 
   @override
   void initState() {
     super.initState();
     _reportsFuture = _repo.getReports();
+  }
+
+  Future<void> _refreshReports() async {
+    setState(() => _reportsFuture = _repo.getReports());
   }
 
   Future<void> _exportPdfReport(ScanResult item) async {
@@ -71,6 +79,118 @@ class _ReportScreenState extends State<ReportScreen> {
     await File(savePath).writeAsBytes(await pdf.save());
   }
 
+  Future<void> _openDetail(ScanResult item) async {
+    final targetController = TextEditingController(text: 'https://example.com');
+    final commitController = TextBoxController();
+    String status = 'Siap.';
+    bool busy = false;
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return ContentDialog(
+          title: const Text('Project Detail & Git Control'),
+          content: StatefulBuilder(
+            builder: (context, setInnerState) => SizedBox(
+              width: 620,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Project: ${item.projectPath}'),
+                  const SizedBox(height: 8),
+                  Text('Score terakhir: ${item.securityScore} | Temuan: ${item.vulnerabilities.length}'),
+                  const SizedBox(height: 12),
+                  InfoLabel(label: 'Target URL (untuk Nuclei + ZAP)', child: TextBox(controller: targetController)),
+                  const SizedBox(height: 10),
+                  Text(status),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      FilledButton(
+                        child: const Text('Scan Web di Detail'),
+                        onPressed: busy
+                            ? null
+                            : () async {
+                                setInnerState(() {
+                                  busy = true;
+                                  status = 'Checking tools web...';
+                                });
+                                final missing = await _scanner.getMissingWebTools();
+                                if (missing.isNotEmpty) {
+                                  setInnerState(() {
+                                    busy = false;
+                                    status = 'Gagal: tools belum lengkap (${missing.join(', ')})';
+                                  });
+                                  return;
+                                }
+                                final result = await _scanner.runWebScan(targetController.text.trim());
+                                await _repo.saveScanResult(result);
+                                setInnerState(() {
+                                  busy = false;
+                                  status = 'Web scan selesai. Temuan: ${result.vulnerabilities.length}';
+                                });
+                                await _refreshReports();
+                              },
+                      ),
+                      const SizedBox(width: 8),
+                      Button(
+                        child: const Text('Git Status'),
+                        onPressed: busy
+                            ? null
+                            : () async {
+                                final projectDir = Directory(item.projectPath);
+                                if (!projectDir.existsSync()) {
+                                  setInnerState(() => status = 'Path project tidak ditemukan di mesin ini.');
+                                  return;
+                                }
+                                final res = await _git.status(item.projectPath);
+                                setInnerState(() => status = (res.stdout.toString().trim().isEmpty) ? 'Working tree clean.' : res.stdout.toString());
+                              },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  InfoLabel(label: 'Commit message', child: TextBox(controller: commitController, placeholder: 'chore(security): fix after scan')),                  
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            Button(
+              child: const Text('Commit + Push (Lolos Scan)'),
+              onPressed: () async {
+                final projectDir = Directory(item.projectPath);
+                if (!projectDir.existsSync()) {
+                  setState(() {});
+                  return;
+                }
+                final latest = await _repo.getReports();
+                final latestForProject = latest.where((e) => e.projectPath == item.projectPath).toList();
+                if (latestForProject.isEmpty) return;
+                final sev = latestForProject.first.severityCount;
+                final high = sev['high'] ?? 0;
+                final critical = sev['critical'] ?? 0;
+                if (high > 0 || critical > 0) {
+                  return;
+                }
+                final msg = commitController.text.trim().isEmpty ? 'chore(security): safe commit after clean scan' : commitController.text.trim();
+                await _git.addAll(item.projectPath);
+                await _git.commit(item.projectPath, msg);
+                await _git.push(item.projectPath);
+                if (context.mounted) Navigator.pop(context);
+              },
+            ),
+            FilledButton(
+              child: const Text('Tutup'),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -109,6 +229,11 @@ class _ReportScreenState extends State<ReportScreen> {
                           Button(
                             child: const Text('Export PDF'),
                             onPressed: () => _exportPdfReport(item),
+                          ),
+                          const SizedBox(width: 8),
+                          FilledButton(
+                            child: const Text('Detail / Git'),
+                            onPressed: () => _openDetail(item),
                           ),
                         ],
                       )
