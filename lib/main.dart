@@ -154,16 +154,19 @@ class _AppShellState extends State<AppShell> {
         onChanged: (i) => setState(() => _index = i),
         displayMode: PaneDisplayMode.auto,
         size: const NavigationPaneSize(openWidth: 280),
-        header: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
+        header: const Padding(
+          padding: EdgeInsets.fromLTRB(14, 8, 8, 8),
+          child: Text(
+            'Protection Areas',
+            style: TextStyle(fontWeight: FontWeight.w700),
+          ),
+        ),
+        footer: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 8, 8, 12),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Protection Areas',
-                style: TextStyle(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 6),
               const Text('Project aktif', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
               const SizedBox(height: 4),
               Tooltip(
@@ -175,7 +178,7 @@ class _AppShellState extends State<AppShell> {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               Button(onPressed: _switchProject, child: const Text('Ganti Project')),
             ],
           ),
