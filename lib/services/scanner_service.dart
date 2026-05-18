@@ -90,7 +90,8 @@ class ScannerService {
   }
 
   Future<List<Vulnerability>> _runNuclei(String targetUrl, List<String> errors) async {
-    final result = await _runProcess('nuclei', ['-u', targetUrl, '-jsonl']);
+    final nucleiCmd = await _resolveExecutable('nuclei');
+    final result = await _runProcess(nucleiCmd, ['-u', targetUrl, '-jsonl']);
     if (result == null) {
       final diag = await _diagnoseCommand('nuclei');
       errors.add('nuclei error: process gagal dijalankan. $diag');
@@ -111,7 +112,8 @@ class ScannerService {
   Future<List<Vulnerability>> runZapBaseline(String targetUrl, List<String> errors) async {
     final tempDir = await Directory.systemTemp.createTemp('securepush-zap-');
     final reportPath = p.join(tempDir.path, 'zap-report.json');
-    final result = await _runProcess('zap-baseline.py', ['-t', targetUrl, '-J', reportPath]);
+    final zapExec = await _resolveZapBaselineExecutable();
+    final result = await _runZapBaselineProcess(zapExec, targetUrl, reportPath);
     if (result == null) {
       final diag = await _diagnoseCommand('zap-baseline.py');
       errors.add('zap error: process gagal dijalankan. $diag');
@@ -151,9 +153,9 @@ class ScannerService {
 
   Future<bool> _isInstalled(String toolName) => _installer.isInstalled(toolName);
 
-  Future<ProcessResult?> _runProcess(String cmd, List<String> args) async {
+  Future<ProcessResult?> _runProcess(String cmd, List<String> args, {String? workingDirectory}) async {
     try {
-      return await Process.run(cmd, args);
+      return await Process.run(cmd, args, workingDirectory: workingDirectory);
     } on ProcessException {
       return null;
     }
@@ -161,6 +163,82 @@ class ScannerService {
 
 
 
+
+
+
+
+  Future<ProcessResult?> _runZapBaselineProcess(String executable, String targetUrl, String reportPath) async {
+    final args = ['-t', targetUrl, '-J', reportPath];
+    if (executable.toLowerCase().endsWith('.py')) {
+      final pyResult = await _runProcess('python', [executable, ...args]);
+      if (pyResult != null) return pyResult;
+      return _runProcess('python3', [executable, ...args]);
+    }
+    final workdir = File(executable).parent.path;
+    return _runProcess(executable, args, workingDirectory: workdir);
+  }
+
+  Future<String> _resolveZapBaselineExecutable() async {
+    final resolved = await _resolveExecutable('zap-baseline.py');
+    if (resolved != 'zap-baseline.py') return resolved;
+
+    if (Platform.isWindows) {
+      final programFiles = <String?>[
+        Platform.environment['ProgramFiles'],
+        Platform.environment['ProgramFiles(x86)'],
+      ];
+      for (final base in programFiles) {
+        if (base == null || base.isEmpty) continue;
+        final zapDir = Directory('$base\\ZAP\\Zed Attack Proxy');
+        final baseline = File('${zapDir.path}\\zap-baseline.py');
+        if (await baseline.exists()) return baseline.path;
+        final zapBat = File('${zapDir.path}\\zap.bat');
+        if (await zapBat.exists()) return zapBat.path;
+      }
+    }
+
+    return resolved;
+  }
+  Future<String> _resolveExecutable(String cmd) async {
+    if (!Platform.isWindows) return cmd;
+
+    final whereResult = await Process.run('where.exe', [cmd]);
+    if (whereResult.exitCode == 0) {
+      final out = whereResult.stdout.toString().trim();
+      if (out.isNotEmpty) return out.split(RegExp(r'\r?\n')).first.trim();
+    }
+
+    final localAppData = Platform.environment['LOCALAPPDATA'];
+    if (localAppData != null && localAppData.isNotEmpty) {
+      final wingetLink = File('$localAppData\\Microsoft\\WinGet\\Links\\$cmd');
+      if (await wingetLink.exists()) return wingetLink.path;
+      if (!cmd.endsWith('.exe')) {
+        final exeLink = File('$localAppData\\Microsoft\\WinGet\\Links\\$cmd.exe');
+        if (await exeLink.exists()) return exeLink.path;
+      }
+    }
+
+    final userProfile = Platform.environment['USERPROFILE'];
+    if (userProfile != null && userProfile.isNotEmpty) {
+      final goBin = File('$userProfile\\go\\bin\\$cmd.exe');
+      if (await goBin.exists()) return goBin.path;
+      final scoop = File('$userProfile\\scoop\\shims\\$cmd');
+      if (await scoop.exists()) return scoop.path;
+      final scoopExe = File('$userProfile\\scoop\\shims\\$cmd.exe');
+      if (await scoopExe.exists()) return scoopExe.path;
+    }
+
+    final psResult = await Process.run('powershell.exe', [
+      '-NoProfile',
+      '-Command',
+      "(Get-Command $cmd -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source -First 1)"
+    ]);
+    if (psResult.exitCode == 0 && psResult.stdout.toString().trim().isNotEmpty) {
+      return psResult.stdout.toString().trim();
+    }
+
+    return cmd;
+  }
   Future<String> _diagnoseCommand(String cmd) async {
     try {
       if (Platform.isWindows) {
