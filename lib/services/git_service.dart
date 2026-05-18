@@ -12,7 +12,9 @@ class GitService {
 
   Future<void> installPrePushHook(String projectPath) async {
     final hook = File('$projectPath/.git/hooks/pre-push');
+
     await hook.create(recursive: true);
+
     await hook.writeAsString(r'''#!/usr/bin/env bash
 # SecurePush pre-push hook
 
@@ -24,6 +26,7 @@ with open('.securepush_last_scan.json','r',encoding='utf-8') as f:
 print(int(data.get('critical',0)))
 PY
 )
+
   high=$(python3 - <<'PY'
 import json
 with open('.securepush_last_scan.json','r',encoding='utf-8') as f:
@@ -40,7 +43,15 @@ fi
 
 exit 0
 ''');
-    await Process.run('chmod', ['+x', hook.path]);
+
+    // chmod hanya untuk Linux/macOS
+    if (!Platform.isWindows) {
+      try {
+        await Process.run('chmod', ['+x', hook.path]);
+      } catch (e) {
+        print('chmod failed: $e');
+      }
+    }
   }
 
   Future<void> writeLastScanSummary(

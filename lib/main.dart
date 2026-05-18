@@ -61,16 +61,51 @@ class _AppShellState extends State<AppShell> {
         size: const NavigationPaneSize(openWidth: 280),
         header: const Padding(
           padding: EdgeInsets.fromLTRB(14, 8, 8, 8),
-          child: Text('Protection Areas', style: TextStyle(fontWeight: FontWeight.w700)),
+          child: Text(
+            'Protection Areas',
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ),
         items: [
-          PaneItem(icon: const Icon(FluentIcons.view_dashboard), title: const Text('Dashboard'), body: pages[0]),
-          PaneItem(icon: const Icon(FluentIcons.search), title: const Text('Scan'), body: pages[1]),
-          PaneItem(icon: const Icon(FluentIcons.report_document), title: const Text('Report'), body: pages[2]),
-          PaneItem(icon: const Icon(FluentIcons.settings), title: const Text('Settings'), body: pages[3]),
+          PaneItem(
+            icon: const Icon(FluentIcons.view_dashboard),
+            title: const Text('Dashboard'),
+            body: _ShellPage(
+              title: _titles[0],
+              child: pages[0],
+            ),
+          ),
+
+          PaneItem(
+            icon: const Icon(FluentIcons.search),
+            title: const Text('Scan'),
+            body: _ShellPage(
+              title: _titles[1],
+              child: pages[1],
+            ),
+          ),
+
+          PaneItem(
+            icon: const Icon(FluentIcons.report_document),
+            title: const Text('Report'),
+            body: _ShellPage(
+              title: _titles[2],
+              child: pages[2],
+            ),
+          ),
+
+          PaneItem(
+            icon: const Icon(FluentIcons.settings),
+            title: const Text('Settings'),
+            body: _ShellPage(
+              title: _titles[3],
+              child: pages[3],
+            ),
+          ),
         ],
       ),
-      content: NavigationBody(index: _index, children: pages.map((page) => _ShellPage(title: _titles[_index], child: page)).toList()),
     );
   }
 }
