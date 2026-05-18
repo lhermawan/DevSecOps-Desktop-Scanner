@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:path/path.dart' as p;
 
 import '../models/scan_result.dart';
 import '../models/vulnerability.dart';
@@ -96,10 +97,25 @@ class ScannerService {
   }
 
   Future<List<Vulnerability>> runZapBaseline(String targetUrl, List<String> errors) async {
-    final result = await _runProcess('zap-baseline.py', ['-t', targetUrl, '-J', '-']);
-    return result == null || result.stdout.toString().trim().isEmpty
-        ? []
-        : _safeParse(() => _zap.parse(result.stdout.toString()), errors, 'zap');
+    final tempDir = await Directory.systemTemp.createTemp('securepush-zap-');
+    final reportPath = p.join(tempDir.path, 'zap-report.json');
+    final result = await _runProcess('zap-baseline.py', ['-t', targetUrl, '-J', reportPath]);
+    if (result == null) return [];
+    try {
+      final reportFile = File(reportPath);
+      if (!reportFile.existsSync()) {
+        final stderr = result.stderr.toString().trim();
+        if (stderr.isNotEmpty) errors.add('zap error: $stderr');
+        return [];
+      }
+      final raw = await reportFile.readAsString();
+      if (raw.trim().isEmpty) return [];
+      return _safeParse(() => _zap.parse(raw), errors, 'zap');
+    } finally {
+      if (tempDir.existsSync()) {
+        await tempDir.delete(recursive: true);
+      }
+    }
   }
 
   Future<ScanResult> runWebScan(String targetUrl) async {
