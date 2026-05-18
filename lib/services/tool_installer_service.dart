@@ -71,7 +71,44 @@ class ToolInstallerService {
         '-Command',
         "Get-Command ${candidates.join(',')} -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source -First 1",
       ]);
-      return psResult.exitCode == 0 && psResult.stdout.toString().trim().isNotEmpty;
+      if (psResult.exitCode == 0 && psResult.stdout.toString().trim().isNotEmpty) {
+        return true;
+      }
+
+      if (toolName == 'zap-baseline.py') {
+        final programFiles = <String?>[
+          Platform.environment['ProgramFiles'],
+          Platform.environment['ProgramFiles(x86)'],
+        ];
+
+        for (final basePath in programFiles) {
+          if (basePath == null || basePath.isEmpty) {
+            continue;
+          }
+
+          final zapDir = Directory('$basePath\\ZAP\\Zed Attack Proxy');
+          if (!await zapDir.exists()) {
+            continue;
+          }
+
+          final zapBat = File('${zapDir.path}\\zap.bat');
+          final zapJar = File('${zapDir.path}\\zap-2.17.0.jar');
+          if (await zapBat.exists() || await zapJar.exists()) {
+            return true;
+          }
+
+          final dynamicZapJar = await zapDir
+              .list()
+              .where((entity) => entity is File)
+              .cast<File>()
+              .any((file) => file.uri.pathSegments.last.startsWith('zap-') && file.path.endsWith('.jar'));
+          if (dynamicZapJar) {
+            return true;
+          }
+        }
+      }
+
+      return false;
     }
 
     for (final candidate in candidates) {
