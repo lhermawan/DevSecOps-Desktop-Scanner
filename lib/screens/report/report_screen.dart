@@ -20,7 +20,7 @@ class ReportScreen extends StatefulWidget {
 
 class _ReportScreenState extends State<ReportScreen> {
   final _repo = ReportRepository.instance;
-  final _scanner = ScannerService();
+
   final _git = GitService();
   late Future<List<ScanResult>> _reportsFuture;
 
