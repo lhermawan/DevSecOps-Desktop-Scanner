@@ -1,7 +1,9 @@
 import 'package:fluent_ui/fluent_ui.dart';
 
 class DashboardScreen extends StatelessWidget {
-  const DashboardScreen({super.key});
+  const DashboardScreen({super.key, required this.projectPath});
+
+  final String projectPath;
 
   @override
   Widget build(BuildContext context) {
@@ -10,7 +12,9 @@ class DashboardScreen extends StatelessWidget {
       child: Wrap(
         spacing: 12,
         runSpacing: 12,
-        children: const [
+        children: [
+          Text('Workspace project: $projectPath'),
+          const SizedBox(height: 12),
           _SecurityCard(title: 'Threat Level', value: 'Low', icon: FluentIcons.shield),
           _SecurityCard(title: 'Critical Findings', value: '0', icon: FluentIcons.error),
           _SecurityCard(title: 'High Findings', value: '1', icon: FluentIcons.warning),
