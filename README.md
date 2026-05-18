@@ -1,65 +1,96 @@
 # 🛡️ SecurePush — DevSecOps Desktop Scanner
 
-SecurePush adalah aplikasi desktop berbasis Flutter untuk melakukan scanning source code sebelum push ke GitHub atau deployment ke server.
+SecurePush adalah aplikasi desktop Flutter untuk scanning security sebelum push/deploy.
 
-## Fitur MVP yang sudah disiapkan
+## Yang sudah siap dipakai
 
-- Flutter Desktop UI (Dashboard, Scan, Report, Settings)
-- Integrasi scanner engine via `Process.run()`:
-  - Gitleaks (secret leak)
-  - Semgrep (SAST)
-  - Trivy (dependency/filesystem vulnerability)
-  - Nuclei (web vuln template scan untuk target URL)
-  - OWASP ZAP baseline (DAST untuk target URL)
-- Perhitungan security score berbasis severity
-- Tampilan tabel vulnerability
-- Service git dasar + installer `pre-push` hook
-- Struktur project mengikuti kebutuhan SOC/CSIRT internal
+- Code scan: **Gitleaks + Semgrep + Trivy**
+- Web scan: **Nuclei + OWASP ZAP Baseline**
+- Security score otomatis
+- Tampilan hasil vulnerability
+- Helper untuk cek status Trivy di Settings
 
-## Struktur
+## Prasyarat
 
-```text
-lib/
-├── main.dart
-├── screens/
-│   ├── dashboard/
-│   ├── scan/
-│   ├── report/
-│   └── settings/
-├── services/
-│   ├── scanner_service.dart
-│   ├── git_service.dart
-│   ├── semgrep_service.dart
-│   ├── trivy_service.dart
-│   └── gitleaks_service.dart
-├── models/
-│   ├── vulnerability.dart
-│   ├── scan_result.dart
-│   └── project.dart
-└── widgets/
-    ├── score_card.dart
-    ├── vulnerability_table.dart
-    └── scan_button.dart
-```
+- Flutter SDK (desktop enabled)
+- Git
+- Scanner CLI tersedia di PATH:
+  - `gitleaks`
+  - `semgrep`
+  - `trivy`
+  - `nuclei`
+  - `zap-baseline.py` (opsional jika pakai web scan ZAP)
 
-## Menjalankan
+## Quick Start (langsung coba scan)
+
+1. Install dependency Flutter:
 
 ```bash
 flutter pub get
-flutter run -d windows
-# atau linux / macos
 ```
 
-## Catatan
+2. Jalankan aplikasi desktop (Windows contoh):
 
-- Scanner CLI (`gitleaks`, `semgrep`, `trivy`) harus terinstall di host.
-- Fitur database SQLite, integrasi WhatsApp API, dan integrasi SOC API disiapkan sebagai fase lanjutan.
+```bash
+flutter run -d windows
+```
 
+3. Buka menu **Scan** lalu pilih mode:
+   - **Code Scan** → pilih folder project
+   - **Web Scan** → isi URL target (mis. `https://staging-app.internal`)
 
-## Tambahan: Nuclei + ZAP
+4. Klik **Scan Project** dan tunggu hasil tampil.
 
-Bisa. Implementasi saat ini menambahkan `NucleiService` dan `ZapService`, serta `ScannerService.runWebScan(targetUrl)` untuk scanning aplikasi web (bukan source folder).
+## Cara penggunaan
 
-Contoh use case:
-- `runAll(projectPath)` untuk source/dependency scanning lokal.
-- `runWebScan('https://staging.example.internal')` untuk DAST/Pentest ringan sebelum release.
+### 1) Code Scan
+
+- Pilih mode `Code Scan (Gitleaks/Semgrep/Trivy)`
+- Klik tombol scan
+- Pilih folder source code
+- Aplikasi menjalankan:
+  - gitleaks detect
+  - semgrep scan --config=auto
+  - trivy fs
+
+### 2) Web Scan
+
+- Pilih mode `Web Scan (Nuclei/ZAP)`
+- Isi URL target web
+- Klik scan
+- Aplikasi menjalankan:
+  - nuclei -u <target>
+  - zap-baseline.py -t <target>
+
+## Auto setup semua tools scanner (internet allowed)
+
+Di halaman **Settings**, klik:
+
+- `Check All Tools` untuk cek semua tools scanner di PATH
+- Klik `Install Guide` pada tiap tool untuk menampilkan command install sesuai OS
+
+Tools yang dicheck:
+- gitleaks
+- semgrep
+- trivy
+- nuclei
+- zap-baseline.py (OWASP ZAP)
+
+> Catatan: demi keamanan dan kompatibilitas, aplikasi saat ini menampilkan perintah install resmi (bukan auto-exec silent installer).
+
+## Struktur ringkas
+
+```text
+lib/
+├── screens/
+├── services/
+├── models/
+└── widgets/
+```
+
+## Roadmap berikutnya
+
+- Simpan hasil scan ke SQLite
+- Integrasi SOC API + WhatsApp notif
+- Pre-push block berdasarkan severity threshold
+- Packaging installer (.exe/.dmg/.AppImage)
