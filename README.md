@@ -9,6 +9,8 @@ SecurePush adalah aplikasi desktop berbasis Flutter untuk melakukan scanning sou
   - Gitleaks (secret leak)
   - Semgrep (SAST)
   - Trivy (dependency/filesystem vulnerability)
+  - Nuclei (web vuln template scan untuk target URL)
+  - OWASP ZAP baseline (DAST untuk target URL)
 - Perhitungan security score berbasis severity
 - Tampilan tabel vulnerability
 - Service git dasar + installer `pre-push` hook
@@ -52,3 +54,12 @@ flutter run -d windows
 
 - Scanner CLI (`gitleaks`, `semgrep`, `trivy`) harus terinstall di host.
 - Fitur database SQLite, integrasi WhatsApp API, dan integrasi SOC API disiapkan sebagai fase lanjutan.
+
+
+## Tambahan: Nuclei + ZAP
+
+Bisa. Implementasi saat ini menambahkan `NucleiService` dan `ZapService`, serta `ScannerService.runWebScan(targetUrl)` untuk scanning aplikasi web (bukan source folder).
+
+Contoh use case:
+- `runAll(projectPath)` untuk source/dependency scanning lokal.
+- `runWebScan('https://staging.example.internal')` untuk DAST/Pentest ringan sebelum release.
