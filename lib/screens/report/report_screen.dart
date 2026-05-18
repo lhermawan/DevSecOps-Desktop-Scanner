@@ -7,6 +7,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 import '../../models/scan_result.dart';
+import '../../services/git_service.dart';
 import '../../services/report_repository.dart';
 import 'report_detail_screen.dart';
 
@@ -19,6 +20,8 @@ class ReportScreen extends StatefulWidget {
 
 class _ReportScreenState extends State<ReportScreen> {
   final _repo = ReportRepository.instance;
+  final _scanner = ScannerService();
+  final _git = GitService();
   late Future<List<ScanResult>> _reportsFuture;
 
   @override
