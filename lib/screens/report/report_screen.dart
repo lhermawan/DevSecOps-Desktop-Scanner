@@ -87,18 +87,18 @@ class _ReportScreenState extends State<ReportScreen> {
                         ...item.errors.map((e) => Text('• $e')),
                       ],
                       const SizedBox(height: 8),
-                      Row(
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
                         children: [
                           Button(
                             child: const Text('Copy Errors'),
                             onPressed: item.errors.isEmpty ? null : () => Clipboard.setData(ClipboardData(text: item.errors.join('\n'))),
                           ),
-                          const SizedBox(width: 8),
                           Button(
                             child: const Text('Export PDF'),
                             onPressed: () => _exportPdfReport(item),
                           ),
-                          const SizedBox(width: 8),
                           FilledButton(
                             child: const Text('Detail / Git'),
                             onPressed: () => Navigator.of(context).push(FluentPageRoute(builder: (_) => ReportDetailScreen(item: item))),

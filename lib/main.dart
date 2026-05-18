@@ -137,6 +137,10 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
+    final projectName = _projectPath.split(RegExp(r'[\\/]')).where((e) => e.isNotEmpty).isNotEmpty
+        ? _projectPath.split(RegExp(r'[\\/]')).where((e) => e.isNotEmpty).last
+        : _projectPath;
+
     final pages = [
       DashboardScreen(projectPath: _projectPath),
       ScanScreen(projectPath: _projectPath),
@@ -160,7 +164,17 @@ class _AppShellState extends State<AppShell> {
                 style: TextStyle(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 6),
-              Text('Project aktif: $_projectPath', style: const TextStyle(fontSize: 12)),
+              const Text('Project aktif', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 4),
+              Tooltip(
+                message: _projectPath,
+                child: Text(
+                  projectName,
+                  style: const TextStyle(fontSize: 12),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
               const SizedBox(height: 6),
               Button(onPressed: _switchProject, child: const Text('Ganti Project')),
             ],
