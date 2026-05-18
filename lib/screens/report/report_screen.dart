@@ -81,7 +81,7 @@ class _ReportScreenState extends State<ReportScreen> {
 
   Future<void> _openDetail(ScanResult item) async {
     final targetController = TextEditingController(text: 'https://example.com');
-    final commitController = TextBoxController();
+    final commitController = TextEditingController();
     String status = 'Siap.';
     bool busy = false;
 
