@@ -1,4 +1,13 @@
+import 'dart:convert';
 import 'dart:io';
+
+
+class InstallExecutionResult {
+  const InstallExecutionResult({required this.success, required this.message});
+
+  final bool success;
+  final String message;
+}
 
 class ToolInstallerService {
   static const supportedTools = <String>[
@@ -10,9 +19,69 @@ class ToolInstallerService {
   ];
 
   Future<bool> isInstalled(String toolName) async {
-    final cmd = Platform.isWindows ? 'where' : 'which';
-    final result = await Process.run(cmd, [toolName]);
+    if (await _isOnPath(toolName)) {
+      return true;
+    }
+
+    // Fallback untuk kasus PATH GUI belum sinkron, tapi binary tetap bisa dieksekusi.
+    return _isRunnable(toolName);
+  }
+
+  Future<bool> _isOnPath(String toolName) async {
+    if (Platform.isWindows) {
+      final candidates = [toolName, if (!toolName.endsWith('.exe')) '$toolName.exe'];
+
+      for (final candidate in candidates) {
+        final whereResult = await Process.run('where.exe', [candidate]);
+        if (whereResult.exitCode == 0) {
+          return true;
+        }
+      }
+
+      final localAppData = Platform.environment['LOCALAPPDATA'];
+      if (localAppData != null && localAppData.isNotEmpty) {
+        for (final candidate in candidates) {
+          final wingetLink = File('$localAppData\\Microsoft\\WinGet\\Links\\$candidate');
+          if (await wingetLink.exists()) {
+            return true;
+          }
+        }
+      }
+
+      // Fallback PowerShell jika PATH/alias environment berbeda.
+      final psResult = await Process.run('powershell.exe', [
+        '-NoProfile',
+        '-Command',
+        "Get-Command ${candidates.first} -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source -First 1",
+      ]);
+      return psResult.exitCode == 0 && psResult.stdout.toString().trim().isNotEmpty;
+    }
+
+    final result = await Process.run('which', [toolName]);
     return result.exitCode == 0;
+  }
+
+  Future<bool> _isRunnable(String toolName) async {
+    const versionArgs = <List<String>>[
+      ['--version'],
+      ['version'],
+      ['-version'],
+      ['-v'],
+      ['v'],
+    ];
+
+    for (final args in versionArgs) {
+      try {
+        final result = await Process.run(toolName, args);
+        if (result.exitCode == 0) {
+          return true;
+        }
+      } on ProcessException {
+        // Abaikan command yang memang tidak support argumen ini.
+      }
+    }
+
+    return false;
   }
 
   Future<Map<String, bool>> checkAllTools() async {
@@ -21,6 +90,54 @@ class ToolInstallerService {
       result[tool] = await isInstalled(tool);
     }
     return result;
+  }
+
+
+  Future<InstallExecutionResult> runInstall(String toolName) async {
+    final normalized = toolName.trim();
+    if (await isInstalled(normalized)) {
+      return InstallExecutionResult(success: true, message: '$normalized sudah terinstall.');
+    }
+
+    final installCommand = await getInstallCommand(normalized);
+    if (installCommand == 'Tool tidak dikenali.') {
+      return const InstallExecutionResult(success: false, message: 'Tool tidak dikenali.');
+    }
+
+    if (Platform.isWindows) {
+      return _runWindowsAsAdmin(installCommand);
+    }
+
+    return InstallExecutionResult(
+      success: false,
+      message: 'Auto-install hanya didukung di Windows. Jalankan manual: $installCommand',
+    );
+  }
+
+  Future<InstallExecutionResult> _runWindowsAsAdmin(String installCommand) async {
+    try {
+      final encoded = base64Encode(utf8.encode(installCommand));
+      final script = """
+\$cmd = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('$encoded'))
+Start-Process -FilePath powershell.exe -Verb RunAs -WindowStyle Normal -ArgumentList @('-NoExit','-ExecutionPolicy','Bypass','-Command',\$cmd)
+""";
+
+      final result = await Process.run('powershell', ['-NoProfile', '-Command', script]);
+
+      if (result.exitCode == 0) {
+        return const InstallExecutionResult(
+          success: true,
+          message: 'Installer dijalankan dengan hak administrator. Jendela PowerShell akan tetap terbuka untuk menampilkan proses/error.',
+        );
+      }
+
+      return InstallExecutionResult(
+        success: false,
+        message: 'Gagal menjalankan installer (exit: ${result.exitCode}). ${result.stderr}',
+      );
+    } on ProcessException catch (e) {
+      return InstallExecutionResult(success: false, message: 'Gagal memulai installer: ${e.message}');
+    }
   }
 
   Future<String> getInstallCommand(String toolName) async {
