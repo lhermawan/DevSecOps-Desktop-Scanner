@@ -1,5 +1,6 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:fluent_ui/fluent_ui.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../models/scan_result.dart';
 import '../../services/scanner_service.dart';
@@ -22,6 +23,7 @@ class _ScanScreenState extends State<ScanScreen> {
   ScanResult? _result;
   String _mode = 'code';
   String _status = 'Siap scan.';
+  List<String> _missingTools = [];
 
   @override
   void dispose() {
@@ -36,14 +38,27 @@ class _ScanScreenState extends State<ScanScreen> {
     setState(() {
       _loading = true;
       _projectPath = path;
-      _status = 'Menjalankan Gitleaks, Semgrep, Trivy...';
+      _status = 'Checking tools...';
+      _missingTools = [];
+      _result = null;
     });
 
+    final missing = await _scanner.getMissingCodeTools();
+    if (missing.isNotEmpty) {
+      setState(() {
+        _missingTools = missing;
+        _loading = false;
+        _status = 'Scan dibatalkan: ada tools belum terinstall.';
+      });
+      return;
+    }
+
+    setState(() => _status = 'Menjalankan Gitleaks, Semgrep, Trivy...');
     final result = await _scanner.runAll(path);
     setState(() {
       _result = result;
       _loading = false;
-      _status = 'Scan code selesai.';
+      _status = result.vulnerabilities.isEmpty ? 'Scan selesai. Tidak ada temuan.' : 'Scan selesai. Ditemukan ${result.vulnerabilities.length} temuan.';
     });
   }
 
@@ -54,9 +69,22 @@ class _ScanScreenState extends State<ScanScreen> {
     setState(() {
       _loading = true;
       _projectPath = target;
-      _status = 'Menjalankan Nuclei + OWASP ZAP baseline...';
+      _status = 'Checking tools...';
+      _missingTools = [];
+      _result = null;
     });
 
+    final missing = await _scanner.getMissingWebTools();
+    if (missing.isNotEmpty) {
+      setState(() {
+        _missingTools = missing;
+        _loading = false;
+        _status = 'Scan dibatalkan: ada tools web scan belum terinstall.';
+      });
+      return;
+    }
+
+    setState(() => _status = 'Menjalankan Nuclei + OWASP ZAP baseline...');
     final findings = await _scanner.runWebScan(target);
     setState(() {
       _result = ScanResult(
@@ -66,7 +94,7 @@ class _ScanScreenState extends State<ScanScreen> {
         vulnerabilities: findings,
       );
       _loading = false;
-      _status = 'Scan web selesai.';
+      _status = findings.isEmpty ? 'Web scan selesai. Tidak ada temuan.' : 'Web scan selesai. Ditemukan ${findings.length} temuan.';
     });
   }
 
@@ -76,11 +104,20 @@ class _ScanScreenState extends State<ScanScreen> {
   Widget build(BuildContext context) {
     return NavigationView(
       content: ScaffoldPage(
-        header: const PageHeader(title: Text('Scan Project / Web Target')),
+        header: PageHeader(
+          title: const Text('Scan Project / Web Target'),
+          leading: Button(onPressed: () => context.go('/'), child: const Text('← Kembali')),
+        ),
         content: Padding(
           padding: const EdgeInsets.all(24),
           child: ListView(
             children: [
+              if (_missingTools.isNotEmpty)
+                InfoBar(
+                  title: const Text('Tools belum lengkap'),
+                  content: Text('Silakan install dulu: ${_missingTools.join(', ')}. Buka halaman Settings untuk panduan install.'),
+                  severity: InfoBarSeverity.warning,
+                ),
               InfoLabel(
                 label: 'Mode Scan',
                 child: ComboBox<String>(

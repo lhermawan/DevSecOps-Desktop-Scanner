@@ -78,6 +78,14 @@ Tools yang dicheck:
 
 > Catatan: demi keamanan dan kompatibilitas, aplikasi saat ini menampilkan perintah install resmi (bukan auto-exec silent installer).
 
+
+## Update UX terbaru
+
+- Setiap halaman (`Scan`, `Report`, `Settings`) sekarang punya tombol **← Kembali** ke Dashboard.
+- Saat klik scan, aplikasi akan **cek ketersediaan tools dulu**.
+- Jika tools belum terinstall, scan dibatalkan dan muncul notifikasi tool mana yang kurang.
+- Jadi tidak lagi terlihat seperti "scan selesai terlalu cepat tanpa alasan".
+
 ## Struktur ringkas
 
 ```text

@@ -3,9 +3,9 @@ import 'dart:io';
 import '../models/scan_result.dart';
 import '../models/vulnerability.dart';
 import 'gitleaks_service.dart';
+import 'nuclei_service.dart';
 import 'semgrep_service.dart';
 import 'trivy_service.dart';
-import 'nuclei_service.dart';
 import 'zap_service.dart';
 
 class ScannerService {
@@ -27,6 +27,9 @@ class ScannerService {
   final NucleiService _nuclei;
   final ZapService _zap;
 
+  static const codeTools = ['gitleaks', 'semgrep', 'trivy'];
+  static const webTools = ['nuclei', 'zap-baseline.py'];
+
   Future<ScanResult> runAll(String projectPath) async {
     final startedAt = DateTime.now();
     final vulnerabilities = <Vulnerability>[];
@@ -41,6 +44,21 @@ class ScannerService {
       finishedAt: DateTime.now(),
       vulnerabilities: vulnerabilities,
     );
+  }
+
+  Future<List<String>> getMissingCodeTools() => getMissingTools(codeTools);
+
+  Future<List<String>> getMissingWebTools() => getMissingTools(webTools);
+
+  Future<List<String>> getMissingTools(List<String> tools) async {
+    final missing = <String>[];
+    for (final tool in tools) {
+      final installed = await _isInstalled(tool);
+      if (!installed) {
+        missing.add(tool);
+      }
+    }
+    return missing;
   }
 
   Future<List<Vulnerability>> _runGitleaks(String path) async {
@@ -64,8 +82,6 @@ class ScannerService {
         : _safeParse(() => _trivy.parse(result.stdout.toString()));
   }
 
-
-
   Future<List<Vulnerability>> _runNuclei(String targetUrl) async {
     final result = await _runProcess('nuclei', ['-u', targetUrl, '-jsonl', '-silent']);
     return result == null || result.stdout.toString().trim().isEmpty
@@ -80,13 +96,17 @@ class ScannerService {
         : _safeParse(() => _zap.parse(result.stdout.toString()));
   }
 
-
-
   Future<List<Vulnerability>> runWebScan(String targetUrl) async {
     final findings = <Vulnerability>[];
     findings.addAll(await _runNuclei(targetUrl));
     findings.addAll(await runZapBaseline(targetUrl));
     return findings;
+  }
+
+  Future<bool> _isInstalled(String toolName) async {
+    final cmd = Platform.isWindows ? 'where' : 'which';
+    final result = await Process.run(cmd, [toolName]);
+    return result.exitCode == 0;
   }
 
   Future<ProcessResult?> _runProcess(String cmd, List<String> args) async {

@@ -1,4 +1,5 @@
 import 'package:fluent_ui/fluent_ui.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../services/tool_installer_service.dart';
 
@@ -31,7 +32,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     return NavigationView(
       content: ScaffoldPage(
-        header: const PageHeader(title: Text('Settings')),
+        header: PageHeader(title: const Text('Settings'), leading: Button(onPressed: () => context.go('/'), child: const Text('← Kembali'))),
         content: Padding(
           padding: const EdgeInsets.all(24),
           child: ListView(
