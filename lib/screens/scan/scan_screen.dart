@@ -39,22 +39,24 @@ class _ScanScreenState extends State<ScanScreen> {
   @override
   Widget build(BuildContext context) {
     return NavigationView(
-      appBar: NavigationAppBar(title: const Text('Scan Project')),
-      content: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(_projectPath == null ? 'Belum ada project dipilih.' : 'Project: $_projectPath'),
-            const SizedBox(height: 12),
-            ScanButton(onPressed: _pickAndScan, isLoading: _loading),
-            const SizedBox(height: 20),
-            if (_result != null) ...[
-              ScoreCard(score: _result!.securityScore),
-              const SizedBox(height: 16),
-              VulnerabilityTable(items: _result!.vulnerabilities),
-            ]
-          ],
+      content: ScaffoldPage(
+        header: const PageHeader(title: Text('Scan Project')),
+        content: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(_projectPath == null ? 'Belum ada project dipilih.' : 'Project: $_projectPath'),
+              const SizedBox(height: 12),
+              ScanButton(onPressed: _pickAndScan, isLoading: _loading),
+              const SizedBox(height: 20),
+              if (_result != null) ...[
+                ScoreCard(score: _result!.securityScore),
+                const SizedBox(height: 16),
+                VulnerabilityTable(items: _result!.vulnerabilities),
+              ]
+            ],
+          ),
         ),
       ),
     );

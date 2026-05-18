@@ -6,10 +6,12 @@ class ReportScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return NavigationView(
-      appBar: NavigationAppBar(title: const Text('Vulnerability Report')),
-      content: const Padding(
-        padding: EdgeInsets.all(24),
-        child: Text('Halaman report scan & histori akan ditampilkan di sini (SQLite + SOC API).'),
+      content: const ScaffoldPage(
+        header: PageHeader(title: Text('Vulnerability Report')),
+        content: Padding(
+          padding: EdgeInsets.all(24),
+          child: Text('Halaman report scan & histori akan ditampilkan di sini (SQLite + SOC API).'),
+        ),
       ),
     );
   }
