@@ -54,19 +54,10 @@ class _AppShellState extends State<AppShell> {
     ];
 
     return NavigationView(
-      appBar: NavigationAppBar(
-        title: () => Row(
-          children: const [
-            Icon(FluentIcons.shield),
-            SizedBox(width: 8),
-            Text('SecurePush - Windows Security Style'),
-          ],
-        ),
-      ),
       pane: NavigationPane(
         selected: _index,
         onChanged: (i) => setState(() => _index = i),
-        displayMode: PaneDisplayMode.open,
+        displayMode: PaneDisplayMode.auto,
         size: const NavigationPaneSize(openWidth: 280),
         header: const Padding(
           padding: EdgeInsets.fromLTRB(14, 8, 8, 8),

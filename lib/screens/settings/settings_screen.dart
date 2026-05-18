@@ -1,5 +1,7 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 
+import '../../services/git_service.dart';
 import '../../services/tool_installer_service.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -11,9 +13,11 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final _installer = ToolInstallerService();
+  final _git = GitService();
   Map<String, bool> _toolStatus = {};
   String _installHint = 'Klik check untuk cek semua tools scanner.';
   bool _isInstalling = false;
+  String _gitStatus = 'Belum ada project git dipilih.';
 
   Future<void> _checkAllTools() async {
     final result = await _installer.checkAllTools();
@@ -22,7 +26,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _installHint = 'Pilih tool lalu klik tombol panduan install.';
     });
   }
-
 
   Future<void> _installTool(String tool) async {
     setState(() {
@@ -45,6 +48,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _showInstallHint(String tool) async {
     final message = await _installer.getInstallCommand(tool);
     setState(() => _installHint = '[$tool] $message');
+  }
+
+  Future<void> _installGitHook() async {
+    final path = await FilePicker.platform.getDirectoryPath(dialogTitle: 'Pilih root project git');
+    if (path == null) return;
+    await _git.installPrePushHook(path);
+    setState(() {
+      _gitStatus = 'Hook pre-push terpasang di: $path (block jika severity high/critical > 0).';
+    });
   }
 
   @override
@@ -86,6 +98,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
             content: Text(_installHint),
             severity: InfoBarSeverity.info,
           ),
+          const SizedBox(height: 24),
+          const Text('Git Protection', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          const Text('Install hook pre-push untuk block push kalau masih ada severity High/Critical.'),
+          const SizedBox(height: 12),
+          FilledButton(onPressed: _installGitHook, child: const Text('Install Pre-Push Hook')),
+          const SizedBox(height: 8),
+          Text(_gitStatus),
         ],
       ),
     );
