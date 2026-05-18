@@ -13,7 +13,7 @@ class GitService {
   Future<void> installPrePushHook(String projectPath) async {
     final hook = File('$projectPath/.git/hooks/pre-push');
     await hook.create(recursive: true);
-    await hook.writeAsString('''#!/usr/bin/env bash
+    await hook.writeAsString(r'''#!/usr/bin/env bash
 # SecurePush pre-push hook
 
 if [ -f .securepush_last_scan.json ]; then

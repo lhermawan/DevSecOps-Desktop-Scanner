@@ -34,7 +34,7 @@ class _ScanScreenState extends State<ScanScreen> {
   }
 
   Future<void> _scanCode() async {
-    final path = await FilePicker().getDirectoryPath(dialogTitle: 'Pilih project source code');
+    final path = await FilePicker.platform.getDirectoryPath(dialogTitle: 'Pilih project source code');
     if (path == null) return;
     setState(() {
       _loading = true;
@@ -55,6 +55,15 @@ class _ScanScreenState extends State<ScanScreen> {
     setState(() => _status = 'Menjalankan Gitleaks, Semgrep, Trivy...');
     final result = await _scanner.runAll(path);
     await ReportRepository.instance.saveScanResult(result);
+    final sev = result.severityCount;
+    await _git.writeLastScanSummary(
+      path,
+      critical: sev['critical'] ?? 0,
+      high: sev['high'] ?? 0,
+      medium: sev['medium'] ?? 0,
+      low: sev['low'] ?? 0,
+      score: result.securityScore,
+    );
     setState(() {
       _result = result;
       _loading = false;
