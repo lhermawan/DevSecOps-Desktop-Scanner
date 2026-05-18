@@ -7,12 +7,13 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 import '../../models/scan_result.dart';
-import '../../services/git_service.dart';
 import '../../services/report_repository.dart';
 import 'report_detail_screen.dart';
 
 class ReportScreen extends StatefulWidget {
-  const ReportScreen({super.key});
+  const ReportScreen({super.key, required this.projectPath});
+
+  final String projectPath;
 
   @override
   State<ReportScreen> createState() => _ReportScreenState();
@@ -21,7 +22,6 @@ class ReportScreen extends StatefulWidget {
 class _ReportScreenState extends State<ReportScreen> {
   final _repo = ReportRepository.instance;
 
-  final _git = GitService();
   late Future<List<ScanResult>> _reportsFuture;
 
   @override
@@ -65,7 +65,9 @@ class _ReportScreenState extends State<ReportScreen> {
         future: _reportsFuture,
         builder: (context, snapshot) {
           if (!snapshot.hasData) return const ProgressRing();
-          final reports = snapshot.data!;
+          final reports = snapshot.data!
+              .where((item) => item.projectPath == widget.projectPath)
+              .toList();
           if (reports.isEmpty) return const Text('Belum ada report tersimpan. Jalankan scan dulu.');
           return ListView.builder(
             itemCount: reports.length,
@@ -85,18 +87,18 @@ class _ReportScreenState extends State<ReportScreen> {
                         ...item.errors.map((e) => Text('• $e')),
                       ],
                       const SizedBox(height: 8),
-                      Row(
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
                         children: [
                           Button(
                             child: const Text('Copy Errors'),
                             onPressed: item.errors.isEmpty ? null : () => Clipboard.setData(ClipboardData(text: item.errors.join('\n'))),
                           ),
-                          const SizedBox(width: 8),
                           Button(
                             child: const Text('Export PDF'),
                             onPressed: () => _exportPdfReport(item),
                           ),
-                          const SizedBox(width: 8),
                           FilledButton(
                             child: const Text('Detail / Git'),
                             onPressed: () => Navigator.of(context).push(FluentPageRoute(builder: (_) => ReportDetailScreen(item: item))),
