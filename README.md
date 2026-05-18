@@ -41,6 +41,18 @@ flutter run -d windows
 
 4. Klik **Scan Project** dan tunggu hasil tampil.
 
+
+## Mode Workspace (baru)
+
+- Saat aplikasi dibuka, user **wajib pilih 1 folder project dulu**.
+- Semua menu (`Dashboard`, `Scan`, `Report`) otomatis fokus ke project aktif itu.
+- Bisa ganti project kapan saja dari sidebar (`Ganti Project`).
+- Konsepnya mirip workspace Visual Studio Code: satu window, satu project aktif.
+
+## Penyederhanaan pipeline (tanpa runner khusus)
+
+Aplikasi desktop ini menjalankan scanner **langsung dari mesin lokal** (CLI tools di PATH), jadi alur tidak bergantung pada self-hosted runner untuk eksekusi scan harian. Runner tetap opsional kalau ingin otomatisasi CI/CD di GitHub Actions.
+
 ## Cara penggunaan
 
 ### 1) Code Scan
