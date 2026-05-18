@@ -100,7 +100,13 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
   Widget build(BuildContext context) {
     final item = _latest ?? widget.item;
     return ScaffoldPage.scrollable(
-      header: const PageHeader(title: Text('Project Security Detail')),
+      header: PageHeader(
+        leading: Button(
+          child: const Text('← Kembali'),
+          onPressed: () => Navigator.of(context).maybePop(),
+        ),
+        title: const Text('Project Security Detail'),
+      ),
       children: [
         Text(item.projectPath, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
         const SizedBox(height: 12),

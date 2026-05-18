@@ -92,7 +92,8 @@ class ScannerService {
   Future<List<Vulnerability>> _runNuclei(String targetUrl, List<String> errors) async {
     final result = await _runProcess('nuclei', ['-u', targetUrl, '-jsonl']);
     if (result == null) {
-      errors.add('nuclei error: process gagal dijalankan.');
+      final diag = await _diagnoseCommand('nuclei');
+      errors.add('nuclei error: process gagal dijalankan. $diag');
       return [];
     }
     final stdout = result.stdout.toString();
@@ -112,14 +113,15 @@ class ScannerService {
     final reportPath = p.join(tempDir.path, 'zap-report.json');
     final result = await _runProcess('zap-baseline.py', ['-t', targetUrl, '-J', reportPath]);
     if (result == null) {
-      errors.add('zap error: process gagal dijalankan.');
+      final diag = await _diagnoseCommand('zap-baseline.py');
+      errors.add('zap error: process gagal dijalankan. $diag');
       return [];
     }
     try {
       final reportFile = File(reportPath);
       if (!reportFile.existsSync()) {
         final stderr = result.stderr.toString().trim();
-        errors.add(stderr.isNotEmpty ? 'zap error: $stderr' : 'zap error: report JSON tidak terbentuk.');
+        errors.add(stderr.isNotEmpty ? 'zap error: $stderr' : 'zap error: report JSON tidak terbentuk. Cek apakah zap-baseline.py tersedia di PATH.');
         return [];
       }
       final raw = await reportFile.readAsString();
@@ -157,6 +159,27 @@ class ScannerService {
     }
   }
 
+
+
+  Future<String> _diagnoseCommand(String cmd) async {
+    try {
+      if (Platform.isWindows) {
+        final whereResult = await Process.run('where.exe', [cmd]);
+        if (whereResult.exitCode == 0) {
+          final location = whereResult.stdout.toString().trim().split('\n').first;
+          return 'Command ditemukan di: $location';
+        }
+        return 'Command tidak ditemukan di PATH Windows (where.exe).';
+      }
+      final whichResult = await Process.run('which', [cmd]);
+      if (whichResult.exitCode == 0) {
+        return 'Command ditemukan di: ${whichResult.stdout.toString().trim()}';
+      }
+      return 'Command tidak ditemukan di PATH (which).';
+    } catch (e) {
+      return 'Gagal diagnosis command: $e';
+    }
+  }
   List<Vulnerability> _safeParse(List<Vulnerability> Function() parser, List<String> errors, String tool) {
     try {
       return parser();
