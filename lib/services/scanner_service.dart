@@ -6,6 +6,7 @@ import 'gitleaks_service.dart';
 import 'nuclei_service.dart';
 import 'semgrep_service.dart';
 import 'trivy_service.dart';
+import 'tool_installer_service.dart';
 import 'zap_service.dart';
 
 class ScannerService {
@@ -15,17 +16,20 @@ class ScannerService {
     TrivyService? trivy,
     NucleiService? nuclei,
     ZapService? zap,
+    ToolInstallerService? installer,
   })  : _gitleaks = gitleaks ?? GitleaksService(),
         _semgrep = semgrep ?? SemgrepService(),
         _trivy = trivy ?? TrivyService(),
         _nuclei = nuclei ?? NucleiService(),
-        _zap = zap ?? ZapService();
+        _zap = zap ?? ZapService(),
+        _installer = installer ?? ToolInstallerService();
 
   final GitleaksService _gitleaks;
   final SemgrepService _semgrep;
   final TrivyService _trivy;
   final NucleiService _nuclei;
   final ZapService _zap;
+  final ToolInstallerService _installer;
 
   static const codeTools = ['gitleaks', 'semgrep', 'trivy'];
   static const webTools = ['nuclei', 'zap-baseline.py'];
@@ -103,11 +107,7 @@ class ScannerService {
     return findings;
   }
 
-  Future<bool> _isInstalled(String toolName) async {
-    final cmd = Platform.isWindows ? 'where' : 'which';
-    final result = await Process.run(cmd, [toolName]);
-    return result.exitCode == 0;
-  }
+  Future<bool> _isInstalled(String toolName) => _installer.isInstalled(toolName);
 
   Future<ProcessResult?> _runProcess(String cmd, List<String> args) async {
     try {
