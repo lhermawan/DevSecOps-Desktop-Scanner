@@ -164,9 +164,9 @@ Start-Process -FilePath powershell.exe -Verb RunAs -WindowStyle Normal -Argument
       case 'trivy':
         return 'winget install AquaSecurity.Trivy';
       case 'nuclei':
-        return 'go install -v github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest';
+        return r"if (Get-Command winget -ErrorAction SilentlyContinue) { winget install --id ProjectDiscovery.Nuclei -e --accept-package-agreements --accept-source-agreements } elseif (Get-Command choco -ErrorAction SilentlyContinue) { choco install nuclei -y } else { Write-Error 'winget/choco tidak ditemukan. Install Go lalu jalankan: go install -v github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest' }";
       case 'zap-baseline.py':
-        return 'winget install OWASP.ZAP';
+        return r"if (Get-Command winget -ErrorAction SilentlyContinue) { winget install --id OWASP.ZAP -e --accept-package-agreements --accept-source-agreements } elseif (Get-Command choco -ErrorAction SilentlyContinue) { choco install zap -y } else { Write-Error 'winget/choco tidak ditemukan. Install ZAP manual dari https://www.zaproxy.org/download/' }";
       default:
         return 'Tool tidak dikenali.';
     }
