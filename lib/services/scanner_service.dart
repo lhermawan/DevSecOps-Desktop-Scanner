@@ -5,8 +5,8 @@ import '../models/vulnerability.dart';
 import 'gitleaks_service.dart';
 import 'nuclei_service.dart';
 import 'semgrep_service.dart';
-import 'trivy_service.dart';
 import 'tool_installer_service.dart';
+import 'trivy_service.dart';
 import 'zap_service.dart';
 
 class ScannerService {
@@ -37,16 +37,18 @@ class ScannerService {
   Future<ScanResult> runAll(String projectPath) async {
     final startedAt = DateTime.now();
     final vulnerabilities = <Vulnerability>[];
+    final errors = <String>[];
 
-    vulnerabilities.addAll(await _runGitleaks(projectPath));
-    vulnerabilities.addAll(await _runSemgrep(projectPath));
-    vulnerabilities.addAll(await _runTrivy(projectPath));
+    vulnerabilities.addAll(await _runGitleaks(projectPath, errors));
+    vulnerabilities.addAll(await _runSemgrep(projectPath, errors));
+    vulnerabilities.addAll(await _runTrivy(projectPath, errors));
 
     return ScanResult(
       projectPath: projectPath,
       startedAt: startedAt,
       finishedAt: DateTime.now(),
       vulnerabilities: vulnerabilities,
+      errors: errors,
     );
   }
 
@@ -65,46 +67,54 @@ class ScannerService {
     return missing;
   }
 
-  Future<List<Vulnerability>> _runGitleaks(String path) async {
+  Future<List<Vulnerability>> _runGitleaks(String path, List<String> errors) async {
     final result = await _runProcess('gitleaks', ['detect', '--source', path, '--report-format', 'json', '--report-path', '-']);
     return result == null || result.stdout.toString().trim().isEmpty
         ? []
-        : _safeParse(() => _gitleaks.parse(result.stdout.toString()));
+        : _safeParse(() => _gitleaks.parse(result.stdout.toString()), errors, 'gitleaks');
   }
 
-  Future<List<Vulnerability>> _runSemgrep(String path) async {
+  Future<List<Vulnerability>> _runSemgrep(String path, List<String> errors) async {
     final result = await _runProcess('semgrep', ['scan', '--config=auto', '--json', path]);
     return result == null || result.stdout.toString().trim().isEmpty
         ? []
-        : _safeParse(() => _semgrep.parse(result.stdout.toString()));
+        : _safeParse(() => _semgrep.parse(result.stdout.toString()), errors, 'semgrep');
   }
 
-  Future<List<Vulnerability>> _runTrivy(String path) async {
+  Future<List<Vulnerability>> _runTrivy(String path, List<String> errors) async {
     final result = await _runProcess('trivy', ['fs', '--format', 'json', path]);
     return result == null || result.stdout.toString().trim().isEmpty
         ? []
-        : _safeParse(() => _trivy.parse(result.stdout.toString()));
+        : _safeParse(() => _trivy.parse(result.stdout.toString()), errors, 'trivy');
   }
 
-  Future<List<Vulnerability>> _runNuclei(String targetUrl) async {
+  Future<List<Vulnerability>> _runNuclei(String targetUrl, List<String> errors) async {
     final result = await _runProcess('nuclei', ['-u', targetUrl, '-jsonl', '-silent']);
     return result == null || result.stdout.toString().trim().isEmpty
         ? []
-        : _safeParse(() => _nuclei.parseJsonl(result.stdout.toString()));
+        : _safeParse(() => _nuclei.parseJsonl(result.stdout.toString()), errors, 'nuclei');
   }
 
-  Future<List<Vulnerability>> runZapBaseline(String targetUrl) async {
+  Future<List<Vulnerability>> runZapBaseline(String targetUrl, List<String> errors) async {
     final result = await _runProcess('zap-baseline.py', ['-t', targetUrl, '-J', '-']);
     return result == null || result.stdout.toString().trim().isEmpty
         ? []
-        : _safeParse(() => _zap.parse(result.stdout.toString()));
+        : _safeParse(() => _zap.parse(result.stdout.toString()), errors, 'zap');
   }
 
-  Future<List<Vulnerability>> runWebScan(String targetUrl) async {
+  Future<ScanResult> runWebScan(String targetUrl) async {
+    final startedAt = DateTime.now();
     final findings = <Vulnerability>[];
-    findings.addAll(await _runNuclei(targetUrl));
-    findings.addAll(await runZapBaseline(targetUrl));
-    return findings;
+    final errors = <String>[];
+    findings.addAll(await _runNuclei(targetUrl, errors));
+    findings.addAll(await runZapBaseline(targetUrl, errors));
+    return ScanResult(
+      projectPath: targetUrl,
+      startedAt: startedAt,
+      finishedAt: DateTime.now(),
+      vulnerabilities: findings,
+      errors: errors,
+    );
   }
 
   Future<bool> _isInstalled(String toolName) => _installer.isInstalled(toolName);
@@ -117,10 +127,11 @@ class ScannerService {
     }
   }
 
-  List<Vulnerability> _safeParse(List<Vulnerability> Function() parser) {
+  List<Vulnerability> _safeParse(List<Vulnerability> Function() parser, List<String> errors, String tool) {
     try {
       return parser();
-    } catch (_) {
+    } catch (e) {
+      errors.add('$tool parse error: $e');
       return [];
     }
   }

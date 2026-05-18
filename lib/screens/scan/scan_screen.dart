@@ -2,6 +2,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 
 import '../../models/scan_result.dart';
+import '../../services/git_service.dart';
+import '../../services/report_repository.dart';
 import '../../services/scanner_service.dart';
 import '../../widgets/scan_button.dart';
 import '../../widgets/score_card.dart';
@@ -16,6 +18,7 @@ class ScanScreen extends StatefulWidget {
 
 class _ScanScreenState extends State<ScanScreen> {
   final _scanner = ScannerService();
+  final _git = GitService();
   final _urlController = TextEditingController(text: 'https://example.com');
   bool _loading = false;
   String? _projectPath;
@@ -51,6 +54,7 @@ class _ScanScreenState extends State<ScanScreen> {
     }
     setState(() => _status = 'Menjalankan Gitleaks, Semgrep, Trivy...');
     final result = await _scanner.runAll(path);
+    await ReportRepository.instance.saveScanResult(result);
     setState(() {
       _result = result;
       _loading = false;
@@ -78,11 +82,12 @@ class _ScanScreenState extends State<ScanScreen> {
       return;
     }
     setState(() => _status = 'Menjalankan Nuclei + OWASP ZAP baseline...');
-    final findings = await _scanner.runWebScan(target);
+    final result = await _scanner.runWebScan(target);
+    await ReportRepository.instance.saveScanResult(result);
     setState(() {
-      _result = ScanResult(projectPath: target, startedAt: DateTime.now(), finishedAt: DateTime.now(), vulnerabilities: findings);
+      _result = result;
       _loading = false;
-      _status = findings.isEmpty ? 'Web scan selesai. Tidak ada temuan.' : 'Web scan selesai. Ditemukan ${findings.length} temuan.';
+      _status = result.vulnerabilities.isEmpty ? 'Web scan selesai. Tidak ada temuan.' : 'Web scan selesai. Ditemukan ${result.vulnerabilities.length} temuan.';
     });
   }
 
