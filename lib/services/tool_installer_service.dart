@@ -48,6 +48,23 @@ class ToolInstallerService {
         }
       }
 
+      final userProfile = Platform.environment['USERPROFILE'];
+      if (userProfile != null && userProfile.isNotEmpty) {
+        final fallbackDirs = <String>[
+          '$userProfile\\go\\bin',
+          '$userProfile\\scoop\\shims',
+        ];
+
+        for (final dir in fallbackDirs) {
+          for (final candidate in candidates) {
+            final binary = File('$dir\\$candidate');
+            if (await binary.exists()) {
+              return true;
+            }
+          }
+        }
+      }
+
       // Fallback PowerShell jika PATH/alias environment berbeda.
       final psResult = await Process.run('powershell.exe', [
         '-NoProfile',
