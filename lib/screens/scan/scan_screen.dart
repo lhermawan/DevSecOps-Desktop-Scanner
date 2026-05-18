@@ -1,4 +1,3 @@
-import 'package:file_picker/file_picker.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 
 import '../../models/scan_result.dart';
@@ -10,7 +9,9 @@ import '../../widgets/score_card.dart';
 import '../../widgets/vulnerability_table.dart';
 
 class ScanScreen extends StatefulWidget {
-  const ScanScreen({super.key});
+  const ScanScreen({super.key, required this.projectPath});
+
+  final String projectPath;
 
   @override
   State<ScanScreen> createState() => _ScanScreenState();
@@ -20,17 +21,14 @@ class _ScanScreenState extends State<ScanScreen> {
   final _scanner = ScannerService();
   final _git = GitService();
   bool _loading = false;
-  String? _projectPath;
   ScanResult? _result;
   String _status = 'Siap scan.';
   List<String> _missingTools = [];
 
   Future<void> _scanCode() async {
-    final path = await FilePicker.platform.getDirectoryPath(dialogTitle: 'Pilih folder project source code');
-    if (path == null) return;
+    final path = widget.projectPath;
     setState(() {
       _loading = true;
-      _projectPath = path;
       _status = 'Checking tools...';
       _missingTools = [];
       _result = null;
@@ -77,7 +75,7 @@ class _ScanScreenState extends State<ScanScreen> {
             ),
           const Text('Scan page hanya untuk Code Scan. Web Scan (Nuclei + ZAP) dilakukan dari halaman Report > Detail / Git.'),
           const SizedBox(height: 12),
-          Text(_projectPath == null ? 'Belum ada folder project dipilih.' : 'Project: $_projectPath'),
+          Text('Project aktif: ${widget.projectPath}'),
           const SizedBox(height: 4),
           Text(_status),
           const SizedBox(height: 12),

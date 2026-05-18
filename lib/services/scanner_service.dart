@@ -192,8 +192,6 @@ class ScannerService {
         final zapDir = Directory('$base\\ZAP\\Zed Attack Proxy');
         final baseline = File('${zapDir.path}\\zap-baseline.py');
         if (await baseline.exists()) return baseline.path;
-        final zapBat = File('${zapDir.path}\\zap.bat');
-        if (await zapBat.exists()) return zapBat.path;
       }
     }
 
@@ -241,6 +239,10 @@ class ScannerService {
   }
   Future<String> _diagnoseCommand(String cmd) async {
     try {
+      if (cmd == 'zap-baseline.py') {
+        return 'Pastikan file zap-baseline.py tersedia (bukan hanya zap.bat/zap.exe). '\
+            'Di Windows biasanya ada di C:\\Program Files\\ZAP\\Zed Attack Proxy\\zap-baseline.py.';
+      }
       if (Platform.isWindows) {
         final whereResult = await Process.run('where.exe', [cmd]);
         if (whereResult.exitCode == 0) {
