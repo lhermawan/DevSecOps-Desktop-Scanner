@@ -29,16 +29,30 @@ class ToolInstallerService {
 
   Future<bool> _isOnPath(String toolName) async {
     if (Platform.isWindows) {
-      final whereResult = await Process.run('where.exe', [toolName]);
-      if (whereResult.exitCode == 0) {
-        return true;
+      final candidates = [toolName, if (!toolName.endsWith('.exe')) '$toolName.exe'];
+
+      for (final candidate in candidates) {
+        final whereResult = await Process.run('where.exe', [candidate]);
+        if (whereResult.exitCode == 0) {
+          return true;
+        }
+      }
+
+      final localAppData = Platform.environment['LOCALAPPDATA'];
+      if (localAppData != null && localAppData.isNotEmpty) {
+        for (final candidate in candidates) {
+          final wingetLink = File('$localAppData\\Microsoft\\WinGet\\Links\\$candidate');
+          if (await wingetLink.exists()) {
+            return true;
+          }
+        }
       }
 
       // Fallback PowerShell jika PATH/alias environment berbeda.
-      final psResult = await Process.run('powershell', [
+      final psResult = await Process.run('powershell.exe', [
         '-NoProfile',
         '-Command',
-        "Get-Command $toolName -ErrorAction SilentlyContinue | Select-Object -First 1",
+        "Get-Command ${candidates.first} -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source -First 1",
       ]);
       return psResult.exitCode == 0 && psResult.stdout.toString().trim().isNotEmpty;
     }
@@ -105,7 +119,7 @@ class ToolInstallerService {
       final encoded = base64Encode(utf8.encode(installCommand));
       final script = """
 \$cmd = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('$encoded'))
-Start-Process -FilePath powershell -Verb RunAs -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-Command',\$cmd)
+Start-Process -FilePath powershell.exe -Verb RunAs -WindowStyle Normal -ArgumentList @('-NoExit','-ExecutionPolicy','Bypass','-Command',\$cmd)
 """;
 
       final result = await Process.run('powershell', ['-NoProfile', '-Command', script]);
@@ -113,7 +127,7 @@ Start-Process -FilePath powershell -Verb RunAs -ArgumentList @('-NoProfile','-Ex
       if (result.exitCode == 0) {
         return const InstallExecutionResult(
           success: true,
-          message: 'Installer dijalankan dengan hak administrator. Cek jendela PowerShell yang muncul.',
+          message: 'Installer dijalankan dengan hak administrator. Jendela PowerShell akan tetap terbuka untuk menampilkan proses/error.',
         );
       }
 
