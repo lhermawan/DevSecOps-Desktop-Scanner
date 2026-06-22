@@ -2,6 +2,11 @@
 
 SecurePush adalah aplikasi desktop Flutter untuk scanning security sebelum push/deploy.
 
+
+## Petunjuk Teknis SecFusion
+
+Dokumentasi teknis lengkap untuk instalasi, konfigurasi tools scanner, penggunaan Code Scan/Web Scan, Git protection, dan troubleshooting tersedia di [`PETUNJUK_TEKNIS_SECFUSION.md`](PETUNJUK_TEKNIS_SECFUSION.md).
+
 ## Yang sudah siap dipakai
 
 - Code scan: **Gitleaks + Semgrep + Trivy**
